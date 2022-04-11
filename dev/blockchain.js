@@ -5,7 +5,6 @@ function Blockchain(){
     this.newTransactions = [];
 }
 
-
 Blockchain.prototype.CreateNewBlock = function (nonce, previousBlockHash, hash) {
     const newBlock = {
         index : this.chain.length + 1, // id from new block
@@ -20,6 +19,11 @@ Blockchain.prototype.CreateNewBlock = function (nonce, previousBlockHash, hash) 
     this.chain.push(newBlock); // push new block to new chain
 
     return newBlock;
+}
+
+// method to get last block
+Blockchain.prototype.getLastBlock = function () {
+    return this.chain[this.chain.length - 1]
 }
 
 module.exports = Blockchain
