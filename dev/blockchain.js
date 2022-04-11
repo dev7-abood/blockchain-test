@@ -21,3 +21,5 @@ Blockchain.prototype.CreateNewBlock = function (nonce, previousBlockHash, hash) 
 
     return newBlock;
 }
+
+module.exports = Blockchain
