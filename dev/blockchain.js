@@ -1,8 +1,11 @@
-// create Blockchain constructor function it is like a class object
+const sha256 = require('sha256')
 
+// create Blockchain constructor function it is like a class object
 function Blockchain(){
     this.chain = [];
     this.pendingTransactions = [];
+
+    this.CreateNewBlock(100, '0', '0')
 }
 
 Blockchain.prototype.CreateNewBlock = function (nonce, previousBlockHash, hash) {
@@ -22,7 +25,7 @@ Blockchain.prototype.CreateNewBlock = function (nonce, previousBlockHash, hash) 
 }
 
 // method to get last block
-Blockchain.prototype.getLastBlock = function () {
+Blockchain.prototype.GetLastBlock = function () {
     return this.chain[this.chain.length - 1]
 }
 
@@ -38,6 +41,25 @@ Blockchain.prototype.CreateNewTransaction = function (amount, sender, recipient)
     this.pendingTransactions.push(newTransaction)
 
     return this.getLastBlock()['index'] + 1 // get last block in the chain
+}
+
+// method get the block and hash all data
+Blockchain.prototype.HashBlock = function (previousBlockHash, currentBlockData, nonce) {
+    const dataAsString = previousBlockHash + nonce.toString() + JSON.stringify(currentBlockData)
+    const hash = sha256(dataAsString)
+    return hash
+}
+
+// method to validate the block
+Blockchain.prototype.ProofOfWork = function (previousBlockHash, currentBlockData){
+    let nonce = 0;
+    let hash = this.HashBlock(previousBlockHash, currentBlockData, nonce);
+    while (hash.substring(0, 4) !== '0000') {
+        nonce++;
+        hash = this.HashBlock(previousBlockHash, currentBlockData, nonce)
+        console.log(hash)
+    }
+    return nonce;
 }
 
 module.exports = Blockchain
