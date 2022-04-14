@@ -40,7 +40,7 @@ Blockchain.prototype.CreateNewTransaction = function (amount, sender, recipient)
     // push new transaction to newTransactions array
     this.pendingTransactions.push(newTransaction)
 
-    return this.getLastBlock()['index'] + 1 // get last block in the chain
+    return this.GetLastBlock()['index'] + 1 // get last block in the chain
 }
 
 // method get the block and hash all data
