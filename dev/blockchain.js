@@ -1,9 +1,13 @@
 const sha256 = require('sha256')
+const currentNodeUrl = process.argv[3]
 
 // create Blockchain constructor function it is like a class object
 function Blockchain(){
     this.chain = [];
     this.pendingTransactions = [];
+
+    this.currentNodeUrl = currentNodeUrl;
+    this.networkNodes = [];
 
     this.CreateNewBlock(100, '0', '0')
 }
