@@ -58,23 +58,20 @@ app.post('/register-and-broadcast-node', (req, res) => {
                 newNodeUrl: newNodeUrl,
             }
         };
-        reqNodesPromises.push(axios.post(requestOptions.uri, requestOptions.body))
 
+        reqNodesPromises.push(axios.post(requestOptions.uri, requestOptions.body));
         Promise.all(reqNodesPromises)
             .then(data => {
-                console.log(data)
                 const bulkRegisterOptions = {
                     uri: newNodeUrl + '/register-nods-bulk',
                     body: {
                         allNetworkNodes: [...bitcoin.networkNodes, bitcoin.currentNodeUrl]
                     }
                 }
-
                 return axios.post(bulkRegisterOptions.uri, bulkRegisterOptions.body)
-                    .then(data => {
-                        res.json({note: 'New node registered with network successfully.'})
-                    })
-            })
+            }).then(data => {
+                return res.json({note: 'New node registered with network successfully.'})
+        })
     });
 
 });
@@ -90,7 +87,14 @@ app.post('/register-node', (req, res) => {
 
 // register multiple nodes at once
 app.post('/register-nods-bulk', (req, res) => {
+    const allNetworkNodes = req.body.allNetworkNodes;
+    allNetworkNodes.forEach(networkNodeUrl => {
+        const nodeNotAlreadyPresent = bitcoin.networkNodes.indexOf(networkNodeUrl) === -1;
+        const notCurrentNode = bitcoin.currentNodeUrl !== networkNodeUrl;
+        if (nodeNotAlreadyPresent && notCurrentNode) bitcoin.networkNodes.push(networkNodeUrl)
+    });
 
+    res.json({node : 'Bulk register successful'})
 });
 
 const port = process.argv[2]
