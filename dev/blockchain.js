@@ -1,7 +1,9 @@
 const sha256 = require('sha256')
+const uuidv1 = require("uuidv1");
 const currentNodeUrl = process.argv[3]
 
 // create Blockchain constructor function it is like a class object
+/*
 function Blockchain(){
     this.chain = [];
     this.pendingTransactions = [];
@@ -11,8 +13,19 @@ function Blockchain(){
 
     this.CreateNewBlock(100, '0', '0')
 }
+*/
+function Blockchain(){
+    this.chain = [];
+    this.pendingTransactions = [];
 
-Blockchain.prototype.CreateNewBlock = function (nonce, previousBlockHash, hash) {
+    this.currentNodeUrl = process.argv[3];
+    this.networkNodes = [];
+
+    this.createNewBlock(100, '0', '0')
+}
+
+
+Blockchain.prototype.createNewBlock = function (nonce, previousBlockHash, hash) {
     const newBlock = {
         index : this.chain.length + 1, // id from new block
         timestamp : Date.now(), // when create new block
@@ -29,13 +42,14 @@ Blockchain.prototype.CreateNewBlock = function (nonce, previousBlockHash, hash) 
 }
 
 // method to get last block
-Blockchain.prototype.GetLastBlock = function () {
+Blockchain.prototype.getLastBlock = function () {
     return this.chain[this.chain.length - 1]
 }
 
 // method to create new transaction
-Blockchain.prototype.CreateNewTransaction = function (amount, sender, recipient){
+Blockchain.prototype.createNewTransaction = function (amount, sender, recipient){
     const newTransaction = {
+      transaction_id : uuidv1().split('-').join(''),
       amount : amount, // amount which will be a mount's of the transactions or how much is being sent is this
       sender : sender, // sender address
       recipient : recipient, // recipient address
@@ -44,23 +58,28 @@ Blockchain.prototype.CreateNewTransaction = function (amount, sender, recipient)
     // push new transaction to newTransactions array
     this.pendingTransactions.push(newTransaction)
 
-    return this.GetLastBlock()['index'] + 1 // get last block in the chain
+    return newTransaction;
+}
+
+Blockchain.prototype.addTransactionToPendingTransactions = function (transaction_object) {
+    this.pendingTransactions.push(transaction_object);
+    return this.getLastBlock()['index'] + 1;
 }
 
 // method get the block and hash all data
-Blockchain.prototype.HashBlock = function (previousBlockHash, currentBlockData, nonce) {
+Blockchain.prototype.hashBlock = function (previousBlockHash, currentBlockData, nonce) {
     const dataAsString = previousBlockHash + nonce.toString() + JSON.stringify(currentBlockData)
     const hash = sha256(dataAsString)
     return hash
 }
 
 // method to validate the block
-Blockchain.prototype.ProofOfWork = function (previousBlockHash, currentBlockData){
+Blockchain.prototype.proofOfWork = function (previousBlockHash, currentBlockData){
     let nonce = 0;
-    let hash = this.HashBlock(previousBlockHash, currentBlockData, nonce);
+    let hash = this.hashBlock(previousBlockHash, currentBlockData, nonce);
     while (hash.substring(0, 4) !== '0000') {
         nonce++;
-        hash = this.HashBlock(previousBlockHash, currentBlockData, nonce)
+        hash = this.hashBlock(previousBlockHash, currentBlockData, nonce)
         console.log(hash)
     }
     return nonce;
