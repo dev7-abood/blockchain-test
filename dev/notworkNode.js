@@ -12,17 +12,45 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({extended: false}))
 
 const bitcoin = new Blockchain();
+
+for (let i = 0; i < 5; ++i) {
+    if (!(process.argv[3] === `http://127.0.0.1:300${i + 1}`)) {
+        bitcoin.networkNodes.push(`http://127.0.0.1:300${i + 1}`)
+    }
+}
+
 app.get('/blockchain', (req, res) => {
     res.send(bitcoin)
 });
 
 app.post('/transaction', (req, res) => {
-    const blockIndex = bitcoin.CreateNewTransaction(req.body.amount, req.body.sender, req.body.recipient);
+    const newTransaction = req.body;
+    const blockIndex = bitcoin.addTransactionToPendingTransactions(newTransaction);
     res.json({note: `Transaction will be added in block ${blockIndex}.`})
 });
 
+app.post('/transaction/broadcast', (req, res) => {
+    const newTransaction = bitcoin.createNewTransaction(req.body.amount, req.body.sender, req.body.recipient);
+    bitcoin.addTransactionToPendingTransactions(newTransaction);
+
+    const requestPromises = [];
+
+    bitcoin.networkNodes.forEach(networkNodeUrl => {
+        const requestOptions = {
+            uri: networkNodeUrl + '/transaction',
+            body: newTransaction,
+        };
+        requestPromises.push(axios.post(requestOptions.uri, requestOptions.body));
+    });
+
+    Promise.all(requestPromises)
+        .then(_ => {
+            res.json({note: 'Transaction created and broadcast successfully'});
+        });
+})
+
 app.get('/mine', (req, res) => {
-    const lastBlock = bitcoin.GetLastBlock()
+    const lastBlock = bitcoin.getLastBlock()
     const previousBlockHash = lastBlock['hash'] ?? '';
 
     const currentBlockData = {
@@ -30,20 +58,65 @@ app.get('/mine', (req, res) => {
         index: lastBlock['index'] + 1
     };
 
-    const nonce = bitcoin.ProofOfWork(previousBlockHash, currentBlockData)
-    const blockHash = bitcoin.HashBlock(previousBlockHash, currentBlockData, nonce)
+    const nonce = bitcoin.proofOfWork(previousBlockHash, currentBlockData)
+    const blockHash = bitcoin.hashBlock(previousBlockHash, currentBlockData, nonce)
 
 
-    bitcoin.CreateNewTransaction(12.5, "00", nodeAddress) // winner mine bitcoin
+    // bitcoin.createNewTransaction(12.5, "00", nodeAddress) // winner mine bitcoin
 
-    const newBlock = bitcoin.CreateNewBlock(nonce, previousBlockHash, blockHash)
+    const newBlock = bitcoin.createNewBlock(nonce, previousBlockHash, blockHash);
 
-    res.json({
-        note: "New block mined successfully",
-        block: newBlock
+    const requestPromises = [];
+    bitcoin.networkNodes.forEach(networkNodeUrl => {
+        const requestOptions = {
+            uri: networkNodeUrl + '/receive-new-block',
+            body: {
+                newBlock,
+            }
+        };
+        requestPromises.push(axios.post(requestOptions.uri, requestOptions.body));
+    });
+
+    Promise.all(requestPromises)
+        .then(data => {
+            const requestOptions = {
+                uri: bitcoin.currentNodeUrl + '/transaction/broadcast',
+                body: {
+                    amount: 12.5,
+                    sender: "00",
+                    recipient: nodeAddress
+                }
+            };
+            return axios.post(requestOptions.uri, requestOptions.body);
+        }).then(data => {
+        res.json({
+            note: "New block mined successfully",
+            block: newBlock
+        })
     })
 });
 
+app.post('/receive-new-block', (req, res) => {
+    const newBlock = req.body.newBlock;
+    const lastBlock = bitcoin.getLastBlock();
+    const correctHash = lastBlock.hash === newBlock.previousBlockHash;
+    const correctIndex = lastBlock['index'] + 1 === newBlock['index'];
+
+    if (correctHash && correctIndex){
+        bitcoin.chain.push(newBlock);
+        bitcoin.pendingTransactions = [];
+        res.json({
+            note : 'New block received and accepted.',
+            newBlock
+        })
+    }else {
+        res.json({
+            note : 'The block is rejected.',
+            newBlock
+        })
+    }
+
+});
 
 // register a node and  all nodes broadcast it the network
 app.post('/register-and-broadcast-node', (req, res) => {
@@ -61,7 +134,7 @@ app.post('/register-and-broadcast-node', (req, res) => {
 
         reqNodesPromises.push(axios.post(requestOptions.uri, requestOptions.body));
         Promise.all(reqNodesPromises)
-            .then(data => {
+            .then( _ => {
                 const bulkRegisterOptions = {
                     uri: newNodeUrl + '/register-nods-bulk',
                     body: {
@@ -69,8 +142,8 @@ app.post('/register-and-broadcast-node', (req, res) => {
                     }
                 }
                 return axios.post(bulkRegisterOptions.uri, bulkRegisterOptions.body)
-            }).then(data => {
-                return res.json({note: 'New node registered with network successfully.'})
+            }).then( _ => {
+            return res.json({note: 'New node registered with network successfully.'})
         })
     });
 
@@ -94,7 +167,7 @@ app.post('/register-nods-bulk', (req, res) => {
         if (nodeNotAlreadyPresent && notCurrentNode) bitcoin.networkNodes.push(networkNodeUrl)
     });
 
-    res.json({node : 'Bulk register successful'})
+    res.json({node: 'Bulk register successful'})
 });
 
 const port = process.argv[2]
